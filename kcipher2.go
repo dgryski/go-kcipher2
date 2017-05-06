@@ -96,7 +96,7 @@ func (k *k2cipher) XORKeyStream(dst, src []byte) {
  * @param    t : (INPUT). 8 bits. The number will be multiplied by 2
  * @return     : (OUTPUT). 8 bits. The multiplication result
  */
-func gf_mult_by_2(t uint8) uint8 {
+func gfMultBy2(t uint8) uint8 {
 
 	lq := uint32(t) << 1
 	if (lq & 0x100) != 0 {
@@ -114,7 +114,7 @@ func gf_mult_by_2(t uint8) uint8 {
  * @param    t   : (INPUT). 8 bits. The number will be multiplied by 3
  * @return       : (OUTPUT). 8 bits. The multiplication result
  */
-func gf_mult_by_3(t uint8) uint8 {
+func gfMultBy3(t uint8) uint8 {
 
 	lq := (uint32(t) << 1) ^ uint32(t)
 	if (lq & 0x100) != 0 {
@@ -130,22 +130,22 @@ func gf_mult_by_3(t uint8) uint8 {
  * @param    t   : (INPUT), (1*32) bits
  * @return       : (OUTPUT), (1*32) bits
  */
-func sub_k2(in uint32) uint32 {
+func subK2(in uint32) uint32 {
 
 	w0 := uint8(in)
 	w1 := uint8(in >> 8)
 	w2 := uint8(in >> 16)
 	w3 := uint8(in >> 24)
 
-	t0 := s_box[w0]
-	t1 := s_box[w1]
-	t2 := s_box[w2]
-	t3 := s_box[w3]
+	t0 := sBox[w0]
+	t1 := sBox[w1]
+	t2 := sBox[w2]
+	t3 := sBox[w3]
 
-	q0 := gf_mult_by_2(t0) ^ gf_mult_by_3(t1) ^ t2 ^ t3
-	q1 := t0 ^ gf_mult_by_2(t1) ^ gf_mult_by_3(t2) ^ t3
-	q2 := t0 ^ t1 ^ gf_mult_by_2(t2) ^ gf_mult_by_3(t3)
-	q3 := gf_mult_by_3(t0) ^ t1 ^ t2 ^ gf_mult_by_2(t3)
+	q0 := gfMultBy2(t0) ^ gfMultBy3(t1) ^ t2 ^ t3
+	q1 := t0 ^ gfMultBy2(t1) ^ gfMultBy3(t2) ^ t3
+	q2 := t0 ^ t1 ^ gfMultBy2(t2) ^ gfMultBy3(t3)
+	q3 := gfMultBy3(t0) ^ t1 ^ t2 ^ gfMultBy2(t3)
 
 	out := uint32(q3)<<24 | uint32(q2)<<16 | uint32(q1)<<8 | uint32(q0)
 
@@ -161,7 +161,7 @@ func sub_k2(in uint32) uint32 {
  * @modify   IK[12]  : (OUTPUT), (12*32) bits
  * @modify   IV[12]  : (OUTPUT), (4*32) bits
  */
-func (k *k2cipher) key_expansion(key []uint32, iv []uint32) {
+func (k *k2cipher) keyExpansion(key []uint32, iv []uint32) {
 	// copy iv to IV
 	k.iv[0] = iv[0]
 	k.iv[1] = iv[1]
@@ -174,7 +174,7 @@ func (k *k2cipher) key_expansion(key []uint32, iv []uint32) {
 	k.ik[2] = key[2]
 	k.ik[3] = key[3]
 	// m = 4
-	k.ik[4] = k.ik[0] ^ sub_k2((k.ik[3]<<8)^(k.ik[3]>>24)) ^ 0x01000000
+	k.ik[4] = k.ik[0] ^ subK2((k.ik[3]<<8)^(k.ik[3]>>24)) ^ 0x01000000
 
 	// m = 4 ... 11, but not 4 nor 8
 	k.ik[5] = k.ik[1] ^ k.ik[4]
@@ -182,7 +182,7 @@ func (k *k2cipher) key_expansion(key []uint32, iv []uint32) {
 	k.ik[7] = k.ik[3] ^ k.ik[6]
 
 	// m = 8
-	k.ik[8] = k.ik[4] ^ sub_k2((k.ik[7]<<8)^(k.ik[7]>>24)) ^ 0x02000000
+	k.ik[8] = k.ik[4] ^ subK2((k.ik[7]<<8)^(k.ik[7]>>24)) ^ 0x02000000
 
 	// m = 4 ... 11, but not 4 nor 8
 	k.ik[9] = k.ik[5] ^ k.ik[8]
@@ -197,9 +197,9 @@ func (k *k2cipher) key_expansion(key []uint32, iv []uint32) {
  * @param    iv[4]   : (INPUT), (4*32) bits
  * @modify   S       : (OUTPUT), (A, B, L1, R1, L2, R2)
  */
-func (k *k2cipher) setup_state_values(key []uint32, iv []uint32) {
+func (k *k2cipher) setupStatueValues(key []uint32, iv []uint32) {
 	// setting up IK and IV by calling key_expansion(key, iv)
-	k.key_expansion(key, iv)
+	k.keyExpansion(key, iv)
 
 	// setting up the internal state values
 	k.a[0] = k.ik[4]
@@ -239,7 +239,7 @@ func (k *k2cipher) setup_state_values(key []uint32, iv []uint32) {
  */
 func (k *k2cipher) init(key []uint32, iv []uint32) {
 
-	k.setup_state_values(key, iv)
+	k.setupStatueValues(key, iv)
 
 	for i := 0; i < 24; i++ {
 		k.next(modeInit)
@@ -272,10 +272,10 @@ func (k *k2cipher) next(m mode) {
 
 	var temp1, temp2 uint32
 
-	nL1 := sub_k2(k.r2 + k.b[4])
-	nR1 := sub_k2(k.l2 + k.b[9])
-	nL2 := sub_k2(k.l1)
-	nR2 := sub_k2(k.r1)
+	nL1 := subK2(k.r2 + k.b[4])
+	nR1 := subK2(k.l2 + k.b[9])
+	nL2 := subK2(k.l1)
+	nR2 := subK2(k.r1)
 
 	// m = 0 ... 3
 	nA[0] = k.a[1]
@@ -358,7 +358,7 @@ func (k *k2cipher) stream() (uint32, uint32) {
 	return zh, zl
 }
 
-var s_box = [256]byte{
+var sBox = [256]byte{
 	0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5,
 	0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76,
 	0xca, 0x82, 0xc9, 0x7d, 0xfa, 0x59, 0x47, 0xf0,
